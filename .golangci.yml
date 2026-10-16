@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - gosec
+    - loggercheck
+    - noctx
+    - prealloc
+    - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+          arguments: ["1"]
+        - name: package-comments
+        - name: unused-parameter
+          arguments: ["max-ignores=1"]
+
+formatters:
+  enable:
+    - gofumpt
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - prealloc

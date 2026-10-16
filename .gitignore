@@ -1,0 +1,30 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+
+# Vendor (only commit if intentional)
+# vendor/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Tool caches
+.cache/
