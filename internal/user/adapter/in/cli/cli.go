@@ -39,6 +39,10 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 		return c.list(ctx)
 	case "count":
 		return c.count(ctx)
+	case "rename":
+		return c.rename(ctx, rest)
+	case "delete":
+		return c.delete(ctx, rest)
 	default:
 		c.usage()
 		return fmt.Errorf("unknown command %q", command)
@@ -102,6 +106,44 @@ func (c *CLI) count(ctx context.Context) error {
 	return err
 }
 
+func (c *CLI) rename(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("rename", flag.ContinueOnError)
+	fs.SetOutput(c.out)
+	id := fs.String("id", "", "user id")
+	name := fs.String("name", "", "new display name")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("parse flags: %w", err)
+	}
+	if *id == "" {
+		return fmt.Errorf("usage: rename -id <id> -name <name>")
+	}
+
+	out, err := c.users.RenameUser(ctx, *id, *name)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(c.out, "renamed user %s to %s\n", out.ID, out.Name)
+	return err
+}
+
+func (c *CLI) delete(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
+	fs.SetOutput(c.out)
+	id := fs.String("id", "", "user id")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("parse flags: %w", err)
+	}
+	if *id == "" {
+		return fmt.Errorf("usage: delete -id <id>")
+	}
+
+	if err := c.users.DeleteUser(ctx, *id); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintf(c.out, "deleted user %s\n", *id)
+	return err
+}
+
 func (c *CLI) usage() {
 	_, _ = fmt.Fprint(c.out, `usage: user <command> [flags]
 
@@ -110,5 +152,7 @@ commands:
   get <id>                                       show a user
   list                                           list all users
   count                                          count users
+  rename -id <id> -name <name>                   rename a user
+  delete -id <id>                                delete a user
 `)
 }

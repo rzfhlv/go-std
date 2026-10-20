@@ -42,6 +42,32 @@ func (r *UserRepository) FindByID(_ context.Context, id domain.UserID) (domain.U
 	return user, nil
 }
 
+// FindByEmail implements port.UserRepository. The lookup email is normalized
+// through the domain rule so storage and lookup agree.
+func (r *UserRepository) FindByEmail(_ context.Context, email string) (domain.User, error) {
+	normalized := domain.NormalizeEmail(email)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, user := range r.users {
+		if user.Email() == normalized {
+			return user, nil
+		}
+	}
+	return domain.User{}, domain.ErrUserNotFound
+}
+
+// Delete implements port.UserRepository.
+func (r *UserRepository) Delete(_ context.Context, id domain.UserID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.users[id]; !ok {
+		return domain.ErrUserNotFound
+	}
+	delete(r.users, id)
+	return nil
+}
+
 // List implements port.UserRepository.
 func (r *UserRepository) List(_ context.Context) ([]domain.User, error) {
 	r.mu.RLock()

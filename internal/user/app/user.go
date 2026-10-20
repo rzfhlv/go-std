@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/rzfhlv/go-std/internal/user/domain"
@@ -30,6 +31,8 @@ type UserUseCases interface {
 	GetUser(ctx context.Context, id string) (UserOutput, error)
 	ListUsers(ctx context.Context) ([]UserOutput, error)
 	CountUsers(ctx context.Context) (int, error)
+	RenameUser(ctx context.Context, id, name string) (UserOutput, error)
+	DeleteUser(ctx context.Context, id string) error
 }
 
 // UserService implements the user use cases.
@@ -44,10 +47,22 @@ func NewUserService(repo port.UserRepository) *UserService {
 
 var _ UserUseCases = (*UserService)(nil)
 
-// CreateUser validates the input through the domain and persists the user.
+// CreateUser validates the input through the domain, rejects an email already
+// in use, and persists the user.
+//
+// Uniqueness is enforced as a check against the repository before saving, with
+// both sides comparing through domain.NormalizeEmail. That is best-effort for a
+// store without transactions (a concurrent create could interleave between the
+// check and the save); a database-backed adapter must back it with a unique
+// constraint on the normalized email.
 func (s *UserService) CreateUser(ctx context.Context, in CreateUserInput) (UserOutput, error) {
 	user, err := domain.NewUser(domain.UserID(in.ID), in.Name, in.Email)
 	if err != nil {
+		return UserOutput{}, fmt.Errorf("create user: %w", err)
+	}
+	if _, err := s.repo.FindByEmail(ctx, user.Email()); err == nil {
+		return UserOutput{}, fmt.Errorf("create user: %w", domain.ErrEmailTaken)
+	} else if !errors.Is(err, domain.ErrUserNotFound) {
 		return UserOutput{}, fmt.Errorf("create user: %w", err)
 	}
 	if err := s.repo.Save(ctx, user); err != nil {
@@ -85,6 +100,30 @@ func (s *UserService) CountUsers(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("count users: %w", err)
 	}
 	return len(users), nil
+}
+
+// RenameUser changes a user's display name, preserving id and email.
+func (s *UserService) RenameUser(ctx context.Context, id, name string) (UserOutput, error) {
+	user, err := s.repo.FindByID(ctx, domain.UserID(id))
+	if err != nil {
+		return UserOutput{}, fmt.Errorf("rename user %s: %w", id, err)
+	}
+	renamed, err := user.Rename(name)
+	if err != nil {
+		return UserOutput{}, fmt.Errorf("rename user %s: %w", id, err)
+	}
+	if err := s.repo.Save(ctx, renamed); err != nil {
+		return UserOutput{}, fmt.Errorf("rename user %s: %w", id, err)
+	}
+	return toOutput(renamed), nil
+}
+
+// DeleteUser removes a user by ID.
+func (s *UserService) DeleteUser(ctx context.Context, id string) error {
+	if err := s.repo.Delete(ctx, domain.UserID(id)); err != nil {
+		return fmt.Errorf("delete user %s: %w", id, err)
+	}
+	return nil
 }
 
 func toOutput(user domain.User) UserOutput {

@@ -60,8 +60,54 @@ func TestUserRename(t *testing.T) {
 	if renamed.Name() != "Grace" {
 		t.Errorf("Name() = %q, want %q", renamed.Name(), "Grace")
 	}
+	if renamed.ID() != user.ID() {
+		t.Errorf("ID() = %q, want %q (rename must preserve id)", renamed.ID(), user.ID())
+	}
+	if renamed.Email() != user.Email() {
+		t.Errorf("Email() = %q, want %q (rename must preserve email)", renamed.Email(), user.Email())
+	}
 
 	if _, err := user.Rename("  "); !errors.Is(err, domain.ErrInvalidUser) {
 		t.Errorf("Rename(blank) error = %v, want ErrInvalidUser", err)
+	}
+}
+
+func TestErrorSentinels(t *testing.T) {
+	t.Parallel()
+
+	if domain.ErrEmailTaken == nil {
+		t.Fatal("ErrEmailTaken is nil")
+	}
+	if errors.Is(domain.ErrEmailTaken, domain.ErrInvalidUser) {
+		t.Error("ErrEmailTaken must be distinct from ErrInvalidUser")
+	}
+	if errors.Is(domain.ErrEmailTaken, domain.ErrUserNotFound) {
+		t.Error("ErrEmailTaken must be distinct from ErrUserNotFound")
+	}
+}
+
+func TestNormalizeEmail(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "lowercases", input: "ADA@EXAMPLE.COM", want: "ada@example.com"},
+		{name: "trims", input: "  ada@example.com  ", want: "ada@example.com"},
+		{name: "trims and lowercases", input: " Grace@Example.COM ", want: "grace@example.com"},
+		{name: "already normalized", input: "ada@example.com", want: "ada@example.com"},
+		{name: "empty", input: "   ", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := domain.NormalizeEmail(tt.input); got != tt.want {
+				t.Fatalf("NormalizeEmail(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
 	}
 }

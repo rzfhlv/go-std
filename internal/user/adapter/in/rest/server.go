@@ -26,7 +26,10 @@ func NewServer(users app.UserUseCases) *Server {
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /users", s.listUsers)
 	mux.HandleFunc("POST /users", s.createUser)
+	mux.HandleFunc("GET /users/count", s.countUsers)
 	mux.HandleFunc("GET /users/{id}", s.getUser)
+	mux.HandleFunc("PATCH /users/{id}", s.renameUser)
+	mux.HandleFunc("DELETE /users/{id}", s.deleteUser)
 }
 
 // Handler returns a standalone handler with the user routes registered. It is
@@ -41,6 +44,10 @@ type createUserRequest struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type renameUserRequest struct {
+	Name string `json:"name"`
 }
 
 type userResponse struct {
@@ -94,6 +101,38 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+func (s *Server) countUsers(w http.ResponseWriter, r *http.Request) {
+	n, err := s.users.CountUsers(r.Context())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"count": n})
+}
+
+func (s *Server) renameUser(w http.ResponseWriter, r *http.Request) {
+	var req renameUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	out, err := s.users.RenameUser(r.Context(), r.PathValue("id"), req.Name)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toResponse(out))
+}
+
+func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
+	if err := s.users.DeleteUser(r.Context(), r.PathValue("id")); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -109,6 +148,8 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidUser):
 		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, domain.ErrEmailTaken):
+		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrUserNotFound):
 		writeError(w, http.StatusNotFound, "user not found")
 	default:

@@ -13,6 +13,9 @@ var (
 	ErrInvalidUser = errors.New("invalid user")
 	// ErrUserNotFound is returned when a user cannot be located.
 	ErrUserNotFound = errors.New("user not found")
+	// ErrEmailTaken is returned when a user is created with an email that
+	// already belongs to another user.
+	ErrEmailTaken = errors.New("email already in use")
 )
 
 // UserID identifies a User.
@@ -26,13 +29,20 @@ type User struct {
 	email string
 }
 
+// NormalizeEmail canonicalizes an email address the way the module stores it:
+// surrounding whitespace is trimmed and the address is lowercased. It is the
+// single source of truth for email normalization, so lookups and storage agree.
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 // NewUser constructs a validated User. Name is trimmed and email is normalized
 // to lowercase.
 func NewUser(id UserID, name, email string) (User, error) {
 	u := User{
 		id:    id,
 		name:  strings.TrimSpace(name),
-		email: strings.ToLower(strings.TrimSpace(email)),
+		email: NormalizeEmail(email),
 	}
 	if err := u.validate(); err != nil {
 		return User{}, err
