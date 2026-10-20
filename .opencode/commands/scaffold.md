@@ -29,6 +29,7 @@ port/               # outbound interfaces (only if needed)
 adapter/in/{rest,grpc,cli}/
 adapter/out/{memory,...}/
 ```
+- Register the new module in the `depguard` rules in `.golangci.yml` (copy the `order-layers-private` rule) so its layers stay module-private.
 - `module.go` is the module's ONLY public surface. Expose a constructor (`NewInMemory`) and transport entrypoints (`RegisterREST(mux *http.ServeMux)`, `RunCLI(ctx, out, args)`, `GRPCService()`).
 - Never import another module's layers directly; if the new module needs another, go through that module's facade.
 - Wire the new module in `cmd/rest`, `cmd/cli`, `cmd/grpc` by calling its facade — do not import module layers from `cmd/`.

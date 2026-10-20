@@ -32,8 +32,10 @@ internal/
 - Commands never import module layers: to swap infrastructure, add a constructor to the
   facade (e.g. `user.NewPostgres(pool)`), so cmd stays decoupled.
 
-> Go cannot enforce this without a nested `internal/` folder. These boundaries are a
-> documented convention checked in code review and enforced by the `go-reviewer` agent.
+> Go cannot enforce this without a nested `internal/` folder. Cross-module layer
+> imports are rejected by `make lint` (depguard in `.golangci.yml`); the remaining
+> boundaries are a documented convention checked in code review and by the
+> `go-reviewer` agent. When adding a new module, register it in the depguard rules.
 > If hard compiler enforcement is ever wanted, move each module's layers under
 > `internal/<module>/internal/`.
 
@@ -58,6 +60,14 @@ DDD rules:
 - Use cases orchestrate domain objects through ports; use cases hold no business rules.
 - All of a module's transports drive the same `app` use cases — never fork logic per transport.
 
+## Development process (plan-driven)
+
+Requirements live in `docs/requirements/`; plans in `docs/plans/`. Workflow:
+`/plan <name>` (requirement -> code-anchored plan) -> review plan -> `/implement <name>`
+(plan -> verified implementation, TDD: red -> green -> refactor). Plans are committed and
+edited before their code diverges from them. See `docs/README.md`. New contributors: the
+`project-onboarding` skill is a staged tour of this repo.
+
 ## Non-negotiables
 
 1. One module per bounded context; keep modules thin and independent. Adding a feature belongs in a module, not in `cmd/`.
@@ -65,7 +75,7 @@ DDD rules:
 3. Every exported symbol gets a doc comment; `domain` and `app` packages have a `doc.go` package comment.
 4. No `panic` in `internal/`; `cmd/` mains return non-zero on error.
 5. Stdlib first; a dependency (e.g. `google.golang.org/grpc`) needs justification in the commit message.
-6. Table-driven tests, stdlib `testing` only, `t.Parallel()` where safe.
+6. TDD: write the failing test first, then the code that passes it. Table-driven tests, stdlib `testing` only, `t.Parallel()` where safe.
 7. Never commit secrets, tokens, or `.env` files.
 
 ## Commands agents must use
@@ -85,7 +95,7 @@ DDD rules:
 
 ## Definition of done
 
-`make build && make test && make lint && make vet` all green (run `make install-tools` first if needed). New behavior = new tests; bug fix = regression test. Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`.
+`make build && make test && make lint && make vet` all green (run `make install-tools` first if needed). Implement test-first (red -> green -> refactor). New behavior = new tests; bug fix = regression test. Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`.
 
 ## Current state
 

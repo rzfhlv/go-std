@@ -151,8 +151,10 @@ flowchart LR
 
 A module's only public surface is its facade `module.go`. `cmd/` and other modules must not
 import a module's `domain`, `app`, `port`, or `adapter` packages — they go through the
-facade. This is a documented convention checked in review (see `AGENTS.md`); nesting each
-module's layers under `internal/<module>/internal/` would make it compiler-enforced.
+facade. Cross-module layer imports are rejected by `make lint` (depguard rules in
+`.golangci.yml`); the remaining boundaries are checked in review (see `AGENTS.md`). Nesting
+each module's layers under `internal/<module>/internal/` would make it fully
+compiler-enforced. **When adding a module, register it in the depguard rules.**
 
 ## Request flow
 
@@ -241,7 +243,7 @@ facade (`user.NewInMemory().GRPCService()`).
   for the guided recipe.
 - **A new bounded context**: create `internal/<module>/` with the same layout, expose a
   `module.go` facade, and compose it in the `cmd/*` roots. The `order` module is a worked
-  example.
+  example. Register the new module in the depguard rules in `.golangci.yml`.
 
 Every transport must call the same application use case — never duplicate logic per
 transport.
@@ -264,11 +266,72 @@ transport.
 
 Definition of done: `make build && make test && make lint && make vet` all green.
 
-## Agentic development
+## Development process (agentic, plan-driven)
 
-This repo ships opencode configuration for agent-driven development:
+Work is driven from a **written requirement** to a **written plan** to **verified code**.
+Requirements live in `docs/requirements/`, plans in `docs/plans/`; both are committed and
+are the audit trail of why the code looks the way it does. See `docs/README.md` for the
+full convention.
 
-- `AGENTS.md` — the conventions agents must follow
-- `.opencode/agents/` — `go-reviewer`, `test-writer`, `doc-writer`
-- `.opencode/commands/` — `/scaffold`, `/review`, `/test`
-- `.opencode/skills/go-conventions/` — the module + hexagonal quick reference
+```
+docs/requirements/<name>.md   # 1. the what — human-written, small and testable
+        │  /plan <name>
+        ▼
+docs/plans/<name>.md          # 2. the how — agent-written, anchored in real code
+        │  /implement <name>
+        ▼
+code + green DoD              # 3. the code — agent-built, verified step by step
+```
+
+### The loop, for any developer
+
+1. **Write a requirement.** Copy `docs/requirements/_TEMPLATE.md` to
+   `docs/requirements/<name>.md` (kebab-case, e.g. `order-export-csv.md`) and fill in the
+   Problem, Solution, and — most importantly — the **Acceptance criteria** as observable,
+   testable outcomes. Requirements describe behavior, never implementation.
+2. **Plan it.** Run `/plan <name>`. The planning agent explores the codebase, anchors the
+   design in the real modules (copying `order` for anything non-trivial), and writes
+   `docs/plans/<name>.md` with ordered, file-by-file steps, each naming a verification
+   command. **Review the plan before implementing** — this is where design changes are cheap.
+3. **Implement it (TDD).** Run `/implement <name>`. The agent works the plan's checklist in
+   order, one **red → green → refactor** cycle per step: it writes the failing test first,
+   makes it pass with the smallest change, tidies up, and runs each step's verification. It
+   keeps the plan file in sync when reality diverges, and finishes with the full definition
+   of done plus `test-writer` and `go-reviewer` as independent checkpoints.
+4. **Commit it.** Run `/commit` for a Conventional Commit scoped to the module
+   (e.g. `feat(order): add CSV export subcommand`).
+
+Worked example: `docs/requirements/order-export-csv.md` →
+`docs/plans/order-export-csv.md` (marked `done`).
+
+### Rules that keep the process honest
+
+- **Plans are committed.** They explain intent that code cannot.
+- **Test first.** Every step starts with a failing test (red); implementation makes it pass
+  (green); refactor with the test green. No implementation code without a test that drives it.
+- **Fix the plan first.** If a step is wrong, edit `docs/plans/<name>.md` (and note it under
+  *Risks / open questions*) *before* letting the code diverge.
+- **Verify every step.** A step is done only when its own verification command passes.
+- **Manual or agentic, the bar is the same:** `make build && make test && make lint && make vet`.
+
+### opencode assets
+
+This repo ships opencode configuration so agents produce code that fits the architecture:
+
+| Asset | Purpose |
+| ----- | ------- |
+| `AGENTS.md` | The conventions every agent must follow |
+| `.opencode/skills/go-conventions/` | Module + hexagonal quick reference (loads while coding) |
+| `.opencode/skills/project-onboarding/` | Guided tour of the repo for a new contributor |
+| `.opencode/agents/go-reviewer.md` | Read-only architecture/code reviewer |
+| `.opencode/agents/test-writer.md` | Writes table-driven stdlib tests |
+| `.opencode/agents/doc-writer.md` | Writes godoc, package docs, READMEs |
+| `.opencode/commands/plan.md` | `/plan` — requirement → committed plan |
+| `.opencode/commands/implement.md` | `/implement` — plan → verified implementation |
+| `.opencode/commands/scaffold.md` | `/scaffold` — add a feature or whole module |
+| `.opencode/commands/review.md` | `/review` — review the current diff |
+| `.opencode/commands/test.md` | `/test` — run, fix, and report coverage |
+| `.opencode/commands/commit.md` | `/commit` — Conventional Commit for the diff |
+
+New to the repo? Ask the agent to **onboard you** — the `project-onboarding` skill walks
+through the structure, the build, the request flow, and the conventions in order.
