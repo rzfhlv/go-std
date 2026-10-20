@@ -37,6 +37,8 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 		return c.get(ctx, rest)
 	case "list":
 		return c.list(ctx)
+	case "count":
+		return c.count(ctx)
 	default:
 		c.usage()
 		return fmt.Errorf("unknown command %q", command)
@@ -91,6 +93,15 @@ func (c *CLI) list(ctx context.Context) error {
 	return tw.Flush()
 }
 
+func (c *CLI) count(ctx context.Context) error {
+	n, err := c.users.CountUsers(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(c.out, "%d\n", n)
+	return err
+}
+
 func (c *CLI) usage() {
 	_, _ = fmt.Fprint(c.out, `usage: user <command> [flags]
 
@@ -98,5 +109,6 @@ commands:
   create -id <id> -name <name> -email <email>   create a user
   get <id>                                       show a user
   list                                           list all users
+  count                                          count users
 `)
 }

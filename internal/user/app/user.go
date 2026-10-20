@@ -29,6 +29,7 @@ type UserUseCases interface {
 	CreateUser(ctx context.Context, in CreateUserInput) (UserOutput, error)
 	GetUser(ctx context.Context, id string) (UserOutput, error)
 	ListUsers(ctx context.Context) ([]UserOutput, error)
+	CountUsers(ctx context.Context) (int, error)
 }
 
 // UserService implements the user use cases.
@@ -75,6 +76,15 @@ func (s *UserService) ListUsers(ctx context.Context) ([]UserOutput, error) {
 		out = append(out, toOutput(user))
 	}
 	return out, nil
+}
+
+// CountUsers returns how many users are stored.
+func (s *UserService) CountUsers(ctx context.Context) (int, error) {
+	users, err := s.repo.List(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+	return len(users), nil
 }
 
 func toOutput(user domain.User) UserOutput {

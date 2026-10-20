@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/rzfhlv/go-std/internal/user/adapter/out/memory"
@@ -69,5 +70,45 @@ func TestListUsers(t *testing.T) {
 	}
 	if len(users) != 1 {
 		t.Fatalf("ListUsers() len = %d, want 1", len(users))
+	}
+}
+
+func TestCountUsers(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		seed int
+		want int
+	}{
+		{name: "empty", seed: 0, want: 0},
+		{name: "three", seed: 3, want: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := newService()
+			ctx := context.Background()
+			for i := range tt.seed {
+				in := app.CreateUserInput{
+					ID:    fmt.Sprintf("u%d", i),
+					Name:  "Ada",
+					Email: "ada@example.com",
+				}
+				if _, err := svc.CreateUser(ctx, in); err != nil {
+					t.Fatalf("seed user %d: %v", i, err)
+				}
+			}
+
+			n, err := svc.CountUsers(ctx)
+			if err != nil {
+				t.Fatalf("CountUsers() error = %v", err)
+			}
+			if n != tt.want {
+				t.Fatalf("CountUsers() = %d, want %d", n, tt.want)
+			}
+		})
 	}
 }
