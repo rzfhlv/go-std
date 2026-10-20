@@ -30,6 +30,7 @@ vet:
 
 ## lint: run golangci-lint
 lint:
+	golangci-lint config verify
 	golangci-lint run ./...
 
 ## fmt: format code with gofumpt (applies changes)
