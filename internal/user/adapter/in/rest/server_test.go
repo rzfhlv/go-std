@@ -22,14 +22,14 @@ func TestCreateThenGetUser(t *testing.T) {
 
 	h := newHandler()
 
-	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"id":"u1","name":"Ada","email":"ada@example.com"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/users", strings.NewReader(`{"id":"u1","name":"Ada","email":"ada@example.com"}`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("POST /users status = %d, want 201; body=%s", rec.Code, rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/users/u1", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/users/u1", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -52,7 +52,7 @@ func TestCreateUserInvalidEmail(t *testing.T) {
 	t.Parallel()
 
 	h := newHandler()
-	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"id":"u1","name":"Ada","email":"bad"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/users", strings.NewReader(`{"id":"u1","name":"Ada","email":"bad"}`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -64,7 +64,7 @@ func TestGetUserMissing(t *testing.T) {
 	t.Parallel()
 
 	h := newHandler()
-	req := httptest.NewRequest(http.MethodGet, "/users/missing", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/users/missing", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {

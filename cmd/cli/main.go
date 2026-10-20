@@ -40,7 +40,7 @@ func run(ctx context.Context, args []string) error {
 }
 
 func usage() {
-	fmt.Fprint(os.Stdout, `usage: cli <module> <command> [flags]
+	_, _ = fmt.Fprint(os.Stdout, `usage: cli <module> <command> [flags]
 
 modules:
   user    manage users

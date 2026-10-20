@@ -3,6 +3,7 @@ package cli
 
 import (
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
@@ -43,6 +44,8 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 		return c.get(ctx, rest)
 	case "list":
 		return c.list(ctx)
+	case "export":
+		return c.export(ctx, rest)
 	default:
 		c.usage()
 		return fmt.Errorf("unknown command %q", command)
@@ -153,16 +156,63 @@ func (c *CLI) list(ctx context.Context) error {
 	}
 
 	tw := tabwriter.NewWriter(c.out, 0, 2, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "ID\tCUSTOMER\tSTATUS\tSUBTOTAL\tDISCOUNT\tTOTAL\tCURRENCY"); err != nil {
+	if _, err := fmt.Fprintln(tw, "ID\tCUSTOMER\tSTATUS\tSUBTOTAL\tDISCOUNT\tTOTAL\tCURRENCY\tEMPTY"); err != nil {
 		return err
 	}
 	for _, order := range orders {
-		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%s\n",
-			order.ID, order.CustomerID, order.Status, order.Subtotal, order.Discount, order.Total, order.Currency); err != nil {
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%s\t%s\n",
+			order.ID, order.CustomerID, order.Status, order.Subtotal, order.Discount, order.Total, order.Currency, emptyMarker(order)); err != nil {
 			return err
 		}
 	}
 	return tw.Flush()
+}
+
+// emptyMarker reports whether an order should be flagged as empty in list output.
+func emptyMarker(order app.OrderOutput) string {
+	if len(order.Lines) == 0 {
+		return "yes"
+	}
+	return "no"
+}
+
+// export writes every order as CSV to the CLI output.
+func (c *CLI) export(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("usage: export")
+	}
+	orders, err := c.orders.ListOrders(ctx)
+	if err != nil {
+		return err
+	}
+	return writeCSV(c.out, orders)
+}
+
+// writeCSV writes orders as CSV: a header row followed by one row per order.
+func writeCSV(w io.Writer, orders []app.OrderOutput) error {
+	cw := csv.NewWriter(w)
+	if err := cw.Write([]string{"id", "customer", "status", "subtotal", "discount", "total", "currency"}); err != nil {
+		return fmt.Errorf("write csv header: %w", err)
+	}
+	for _, order := range orders {
+		record := []string{
+			order.ID,
+			order.CustomerID,
+			order.Status,
+			fmt.Sprintf("%d", order.Subtotal),
+			fmt.Sprintf("%d", order.Discount),
+			fmt.Sprintf("%d", order.Total),
+			order.Currency,
+		}
+		if err := cw.Write(record); err != nil {
+			return fmt.Errorf("write csv record for order %s: %w", order.ID, err)
+		}
+	}
+	cw.Flush()
+	if err := cw.Error(); err != nil {
+		return fmt.Errorf("flush csv: %w", err)
+	}
+	return nil
 }
 
 func (c *CLI) printOrder(order app.OrderOutput) error {
@@ -180,7 +230,7 @@ func (c *CLI) printOrder(order app.OrderOutput) error {
 }
 
 func (c *CLI) usage() {
-	fmt.Fprint(c.out, `usage: order <command> [flags]
+	_, _ = fmt.Fprint(c.out, `usage: order <command> [flags]
 
 commands:
   place   -id <id> -customer <id> -product <p> -name <n> -price <c> -currency <cur> -qty <n>   place an order
@@ -189,5 +239,6 @@ commands:
   cancel  <id> [-reason <reason>]                                                               cancel an order
   get     <id>                                                                                  show an order
   list                                                                                          list all orders
+  export                                                                                        export all orders as CSV
 `)
 }

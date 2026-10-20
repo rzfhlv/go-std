@@ -36,14 +36,14 @@ func TestPlaceThenConfirmOrder(t *testing.T) {
 	h := newHandler()
 
 	body := `{"order_id":"o1","customer_id":"c1","lines":[{"product_id":"p1","name":"Widget","unit_price":100,"currency":"USD","quantity":10}]}`
-	req := httptest.NewRequest(http.MethodPost, "/orders", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("POST /orders status = %d, want 201; body=%s", rec.Code, rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/orders/o1/confirm", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders/o1/confirm", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -69,14 +69,14 @@ func TestConfirmEmptyOrderBadRequest(t *testing.T) {
 
 	h := newHandler()
 	body := `{"order_id":"o1","customer_id":"c1","lines":[]}`
-	req := httptest.NewRequest(http.MethodPost, "/orders", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("POST /orders status = %d, want 201", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/orders/o1/confirm", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders/o1/confirm", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -89,21 +89,21 @@ func TestAddLineAfterConfirmConflict(t *testing.T) {
 
 	h := newHandler()
 	body := `{"order_id":"o1","customer_id":"c1","lines":[{"product_id":"p1","name":"Widget","unit_price":100,"currency":"USD","quantity":1}]}`
-	req := httptest.NewRequest(http.MethodPost, "/orders", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("POST /orders status = %d, want 201", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/orders/o1/confirm", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders/o1/confirm", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("confirm status = %d, want 200", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/orders/o1/lines", strings.NewReader(`{"product_id":"p2","name":"Widget","unit_price":100,"currency":"USD","quantity":1}`))
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders/o1/lines", strings.NewReader(`{"product_id":"p2","name":"Widget","unit_price":100,"currency":"USD","quantity":1}`))
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusConflict {
@@ -116,14 +116,14 @@ func TestAddLineInvalidQuantityBadRequest(t *testing.T) {
 
 	h := newHandler()
 	body := `{"order_id":"o1","customer_id":"c1","lines":[{"product_id":"p1","name":"Widget","unit_price":100,"currency":"USD","quantity":1}]}`
-	req := httptest.NewRequest(http.MethodPost, "/orders", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("POST /orders status = %d, want 201", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/orders/o1/lines", strings.NewReader(`{"product_id":"p2","name":"Widget","unit_price":100,"currency":"USD","quantity":0}`))
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orders/o1/lines", strings.NewReader(`{"product_id":"p2","name":"Widget","unit_price":100,"currency":"USD","quantity":0}`))
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -135,7 +135,7 @@ func TestGetOrderMissing(t *testing.T) {
 	t.Parallel()
 
 	h := newHandler()
-	req := httptest.NewRequest(http.MethodGet, "/orders/missing", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orders/missing", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {

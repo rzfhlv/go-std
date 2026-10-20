@@ -4,16 +4,56 @@ linters:
   default: standard
   enable:
     - bodyclose
+    - depguard
     - gosec
     - loggercheck
     - noctx
     - prealloc
     - revive
   settings:
+    depguard:
+      rules:
+        # A module's layers are private to the module; everything outside it
+        # (other modules, cmd/) must go through the module facade.
+        # NOTE: deny pkg entries match by string prefix, not glob.
+        user-layers-private:
+          files:
+            - "$all"
+            - "!**/internal/user/**"
+          deny:
+            - pkg: github.com/rzfhlv/go-std/internal/user/domain
+              desc: "user module layers are private; import the facade github.com/rzfhlv/go-std/internal/user instead"
+            - pkg: github.com/rzfhlv/go-std/internal/user/app
+              desc: "user module layers are private; import the facade github.com/rzfhlv/go-std/internal/user instead"
+            - pkg: github.com/rzfhlv/go-std/internal/user/port
+              desc: "user module layers are private; import the facade github.com/rzfhlv/go-std/internal/user instead"
+            - pkg: github.com/rzfhlv/go-std/internal/user/adapter/
+              desc: "user module layers are private; import the facade github.com/rzfhlv/go-std/internal/user instead"
+        order-layers-private:
+          files:
+            - "$all"
+            - "!**/internal/order/**"
+          deny:
+            - pkg: github.com/rzfhlv/go-std/internal/order/domain
+              desc: "order module layers are private; import the facade github.com/rzfhlv/go-std/internal/order instead"
+            - pkg: github.com/rzfhlv/go-std/internal/order/app
+              desc: "order module layers are private; import the facade github.com/rzfhlv/go-std/internal/order instead"
+            - pkg: github.com/rzfhlv/go-std/internal/order/port
+              desc: "order module layers are private; import the facade github.com/rzfhlv/go-std/internal/order instead"
+            - pkg: github.com/rzfhlv/go-std/internal/order/adapter/
+              desc: "order module layers are private; import the facade github.com/rzfhlv/go-std/internal/order instead"
+        # The hexagonal dependency rule: domain imports stdlib only
+        # (test files may import their own domain package).
+        domain-stdlib-only:
+          files:
+            - "**/internal/*/domain/**"
+            - "!$test"
+          deny:
+            - pkg: github.com/rzfhlv/go-std/
+              desc: "domain packages import the standard library only"
     revive:
       rules:
         - name: exported
-          arguments: ["1"]
         - name: package-comments
         - name: unused-parameter
           arguments: ["max-ignores=1"]

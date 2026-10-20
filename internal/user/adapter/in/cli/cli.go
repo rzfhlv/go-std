@@ -92,7 +92,7 @@ func (c *CLI) list(ctx context.Context) error {
 }
 
 func (c *CLI) usage() {
-	fmt.Fprint(c.out, `usage: user <command> [flags]
+	_, _ = fmt.Fprint(c.out, `usage: user <command> [flags]
 
 commands:
   create -id <id> -name <name> -email <email>   create a user
